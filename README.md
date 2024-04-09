@@ -1,6 +1,6 @@
 ## What does easy-tun do?
 To realize communication between different LAN machines.
-实现不同局域网机器之间的通信。
+实现不同网络机器之间的通信。组网为局域网
 
 serve
 

@@ -8,8 +8,8 @@ import (
 	"github.com/fatih/color"
 	"io"
 	"net"
-	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"github.com/songgao/water"
@@ -18,33 +18,51 @@ import (
 var (
 	inSer = flag.String("ser", "47.105.115.26:8006", "server address")
 	inDev = flag.String("dev", "gtun", "local tun device name")
+	ip    = flag.String("ip", "10.10.10.1/24", "子网掩码是 255.255.255.0、 10.10.10.1/24")
 )
 
 func main() {
 	flag.Parse()
-
+	
 	// 创建tun网卡
 	config := water.Config{
-		DeviceType: water.TUN,
+		DeviceType: water.TUN,//TAP TUN
 	}
 	// windows os是config.InterfaceName
 	config.Name = *inDev
+	
 	ifce, err := water.New(config)
 	if err != nil {
 		color.Red(err.Error())
 		return
 	}
-	// 连接server，默认端口9621
+	// 连接server，8006
 	conn, err := connServer(*inSer)
 	if err != nil {
 		color.Red(err.Error())
 		return
 	}
-	log.Printf("Interface Name: %s\n", ifce.Name())
 	
-	color.Red("server address		:%s", *inSer)
-	color.Red("local tun device name :%s", *inDev)
-	color.Red("connect server succeed.")
+	
+	// 添加 IP 地址到接口  
+	cmdAddIP := exec.Command("ip", "addr", "add", *ip, "dev", *inDev)  
+	_, errAddIP := cmdAddIP.Output()  
+	if errAddIP != nil {  
+		color.Red("Failed to add IP: %v\n", errAddIP)  
+		return  
+	}  
+	color.Cyan("Added IP: %s\n", *ip)  
+	// 启用接口  
+	cmdLinkUp := exec.Command("ip", "link", "set", *inDev, "up")  
+	_, errLinkUp := cmdLinkUp.Output()  
+	if errLinkUp != nil {  
+		color.Red("Failed to set link up: %v\n", errLinkUp)  
+		return  
+	}  
+	
+	color.Cyan("Interface tun device Name: %s\n", ifce.Name())
+	color.Cyan("server address	%s", *inSer)
+	color.Cyan("connect server succeed.")
 
 	// 读取tun网卡，将读取到的数据转发至server端
 	go ifceRead(ifce, conn)
