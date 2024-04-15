@@ -11,8 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
-	"github.com/songgao/water"
+	// 	"github.com/songgao/water"
+	"github.com/labulakalia/water"
 )
 
 var (
@@ -23,14 +25,14 @@ var (
 
 func main() {
 	flag.Parse()
-	
+
 	// 创建tun网卡
 	config := water.Config{
-		DeviceType: water.TUN,//TAP TUN
+		DeviceType: water.TUN, //TAP TUN
 	}
 	// windows os是config.InterfaceName
 	config.Name = *inDev
-	
+
 	ifce, err := water.New(config)
 	if err != nil {
 		color.Red(err.Error())
@@ -42,24 +44,7 @@ func main() {
 		color.Red(err.Error())
 		return
 	}
-	
-	
-	// 添加 IP 地址到接口  
-	cmdAddIP := exec.Command("ip", "addr", "add", *ip, "dev", *inDev)  
-	_, errAddIP := cmdAddIP.Output()  
-	if errAddIP != nil {  
-		color.Red("Failed to add IP: %v\n", errAddIP)  
-		return  
-	}  
-	color.Cyan("Added IP: %s\n", *ip)  
-	// 启用接口  
-	cmdLinkUp := exec.Command("ip", "link", "set", *inDev, "up")  
-	_, errLinkUp := cmdLinkUp.Output()  
-	if errLinkUp != nil {  
-		color.Red("Failed to set link up: %v\n", errLinkUp)  
-		return  
-	}  
-	
+
 	color.Cyan("Interface tun device Name: %s\n", ifce.Name())
 	color.Cyan("server address	%s", *inSer)
 	color.Cyan("connect server succeed.")
@@ -68,6 +53,38 @@ func main() {
 	go ifceRead(ifce, conn)
 	// 接收server端的数据，并将数据写到tun网卡中
 	go ifceWrite(ifce, conn)
+
+	//if runtime.GOARCH == "amd64" || runtime.GOARCH == "386" {
+	switch runtime.GOOS {
+	case "linux":
+		// 添加 IP 地址到接口
+		cmdAddIP := exec.Command("ip", "addr", "add", *ip, "dev", *inDev)
+		_, errAddIP := cmdAddIP.Output()
+		if errAddIP != nil {
+			color.Red("Failed to add IP: %v\n", errAddIP)
+			return
+		}
+		color.Cyan("Added IP: %s\n", *ip)
+		// 启用接口
+		cmdLinkUp := exec.Command("ip", "link", "set", *inDev, "up")
+		_, errLinkUp := cmdLinkUp.Output()
+		if errLinkUp != nil {
+			color.Red("Failed to set link up: %v\n", errLinkUp)
+			return
+		}
+	case "windows":
+		//route print
+		//netsh interface ip add address "gtun" 10.10.10.1 255.255.255.0
+		cmdLinkUp := exec.Command("cmd", "/C", "netsh interface ip add address ", *inDev, *ip)
+		_, errLinkUp := cmdLinkUp.CombinedOutput()
+		if errLinkUp != nil {
+			color.Red("Running generic error: %v\n", errLinkUp)
+			return
+		}
+		color.Cyan("Added IP: %s\n", *ip)
+	default:
+		color.Red("netsh interface ip add address error: %v\n", runtime.GOOS)
+	}
 
 	sig := make(chan os.Signal, 3)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGABRT, syscall.SIGHUP)

@@ -14,6 +14,7 @@ Usage of ./server:
 
 # client
 ```
+[root@VM client]# CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o wintun-windows.exe
 [root@VM client]# ./client -h
 Usage of ./client:
   -dev string

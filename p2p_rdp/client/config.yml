@@ -1,0 +1,8 @@
+serverhost: 124.221.0.127
+serverport: 8006
+type: client_client_type
+clientportfrosvc: 30124
+clientportforp2ptrance: 30123
+rdpp2pport: 30122
+appname: rdp-p2p
+remoterdpaddr: ""
